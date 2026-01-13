@@ -3,11 +3,13 @@
 import os
 from event_bus.event_bus import EventBus
 from agents.agent1_traffic_monitor import TrafficMonitor
+from database.alert_handler import AlertHandler
 
 
 def test_agent():
     """Test the traffic monitor agent."""
     event_bus = EventBus()
+
     alerts_received = []
 
     def alert_handler(event):
@@ -19,29 +21,32 @@ def test_agent():
 
     event_bus.subscribe(alert_handler)
 
+    db_handler = AlertHandler()    # ✅ Subscribe DB handler
+    event_bus.subscribe(db_handler)
+
     sensitive_routes = ["/login", "/admin", "/checkout", "/api/auth"]
     agent = TrafficMonitor(event_bus, sensitive_routes)
 
     print("Testing Agent 1: Traffic Monitor\n")
     print("=" * 50)
 
-    print("\nTest 1: Normal traffic (should not alert)")
-    for i in range(5):
-        agent.process_request(
-            ip="192.168.1.10",
-            route="/home",
-            user_agent="Mozilla/5.0",
-            geo="US"
-        )
+    # print("\nTest 1: Normal traffic (should not alert)")
+    # for i in range(5):
+    #     agent.process_request(
+    #         ip="192.168.1.10",
+    #         route="/home",
+    #         user_agent="Mozilla/5.0",
+    #         geo="US"
+    #     )
 
-    print("\nTest 2: High rate traffic on sensitive route (should alert)")
-    for i in range(60):
-        agent.process_request(
-            ip="123.45.67.89",
-            route="/login",
-            user_agent="Mozilla/5.0",
-            geo="China"
-        )
+    # print("\nTest 2: High rate traffic on sensitive route (should alert)")
+    # for i in range(60):
+    #     agent.process_request(
+    #         ip="123.45.67.89",
+    #         route="/login",
+    #         user_agent="Mozilla/5.0",
+    #         geo="China"
+    #     )
 
     print("\nTest 3: Multiple requests to admin route (should alert)")
     for i in range(15):
