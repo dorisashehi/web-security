@@ -1,10 +1,12 @@
 """Event bus handler for saving alerts to database."""
 
 from datetime import datetime
+from typing import Tuple, Optional
 from sqlalchemy.orm import Session
-from database.models import Alert, AlertStatus, AlertSeverity
+from database.models import Alert
 from database.db import SessionLocal
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -26,34 +28,23 @@ class AlertHandler:
         """Save alert to database."""
         db = SessionLocal()
         try:
-            event_type = event.get("type", "")
             data = event.get("data", {})
             timestamp = event.get("timestamp", datetime.now().isoformat())
 
-            agent_type = data.get("agent", "unknown")
-            severity_str = data.get("severity", "medium").lower()
+            created_at = self.parse_timestamp(timestamp)
 
-            try:
-                severity = AlertSeverity[severity_str.upper()]
-            except (KeyError, AttributeError):
-                severity = AlertSeverity.MEDIUM
-
-            created_at = self._parse_timestamp(timestamp)
+            reason_text = data.get("reason") or data.get("reasoning") or data.get("summary", "")
+            classification, reason = self.parse_classification_and_reason(reason_text)
 
             alert = Alert(
-                agent_type=agent_type,
-                event_type=event_type,
-                severity=severity,
-                status=AlertStatus.NEW,
-                ip_address=data.get("ip"),
-                user_id=data.get("user_id"),
+                agent=data.get("agent", "unknown"),
+                severity=data.get("severity", "medium"),
+                ip=data.get("ip"),
                 route=data.get("route"),
-                classification=data.get("classification"),
-                reason=data.get("reason"),
-                summary=data.get("summary"),
-                reasoning=data.get("reasoning"),
-                recommended_action=data.get("recommended_action"),
-                alert_metadata=self._extract_metadata(data),
+                requests_per_minute=data.get("requests_per_minute"),
+                classification=classification,
+                reason=reason,
+                recommended_action=data.get("recommended_action", ""),
                 created_at=created_at
             )
 
@@ -61,7 +52,7 @@ class AlertHandler:
             db.commit()
             db.refresh(alert)
 
-            logger.info(f"Alert saved: ID={alert.id}, Agent={agent_type}, Severity={severity_str}")
+            logger.info(f"Alert saved: ID={alert.id}, Agent={alert.agent}, Severity={alert.severity}")
 
         except Exception as e:
             db.rollback()
@@ -70,7 +61,7 @@ class AlertHandler:
         finally:
             db.close()
 
-    def _parse_timestamp(self, timestamp) -> datetime:
+    def parse_timestamp(self, timestamp) -> datetime:
         """Parse timestamp string to datetime object."""
         if isinstance(timestamp, datetime):
             return timestamp
@@ -85,18 +76,20 @@ class AlertHandler:
 
         return datetime.now()
 
-    def _extract_metadata(self, data: dict) -> dict:
-        """Extract additional metadata from alert data."""
-        metadata = {}
+    def parse_classification_and_reason(self, reason_text: str) -> Tuple[Optional[str], str]:
+        """Parse JSON to extract classification and reason separately."""
+        if not reason_text:
+            return None, ""
 
-        exclude_fields = {
-            "agent", "severity", "ip", "user_id", "route",
-            "classification", "reason", "summary", "reasoning", "recommended_action"
-        }
+        try:
+            parsed = json.loads(reason_text)
+            if isinstance(parsed, dict):
+                classification = parsed.get("classification")
+                reason = parsed.get("reason", "")
+                return classification, reason
+        except (json.JSONDecodeError, TypeError):
+            pass
 
-        for key, value in data.items():
-            if key not in exclude_fields:
-                metadata[key] = value
+        return None, reason_text
 
-        return metadata
 
