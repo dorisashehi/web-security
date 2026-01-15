@@ -2,6 +2,7 @@
 
 import requests
 import json
+import time
 
 BASE_URL = "http://localhost:8000"
 
@@ -22,6 +23,7 @@ def test_behavior_agent():
         }
     )
     print(f"Baseline set: {response.status_code}")
+    time.sleep(0.1)
 
     print("\nTest 1: Normal behavior (should not alert)")
     response = requests.post(
@@ -34,6 +36,7 @@ def test_behavior_agent():
         }
     )
     print(f"Normal behavior: {response.status_code}")
+    time.sleep(0.1)
 
     print("\nTest 2: High click rate / Bot-like behavior (should alert)")
     for i in range(60):
@@ -41,14 +44,15 @@ def test_behavior_agent():
             f"{BASE_URL}/api/agent3/behavior",
             json={
                 "user_id": "user456",
-                "route": f"/page{i}",
+                "route": "/admin",
                 "action": "click",
                 "location": "US"
             }
         )
-        if i == 59:
-            result = response.json()
-            print(f"\nResponse: {json.dumps(result, indent=2)}")
+
+        result = response.json()
+        print(f"\nResponse: {json.dumps(result, indent=2)}")
+        time.sleep(0.1)
 
     print("\nTest 3: Accessing sensitive routes (should alert)")
     response = requests.post(
@@ -62,6 +66,7 @@ def test_behavior_agent():
     )
     result = response.json()
     print(f"\nResponse: {json.dumps(result, indent=2)}")
+    time.sleep(0.1)
 
     print("\nTest 4: Impossible travel pattern (should alert)")
     response = requests.post(

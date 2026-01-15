@@ -1,4 +1,7 @@
-"""Agent 3: User Behavior Analyzer - Detects suspicious user behavior patterns."""
+"""
+Agent 3: User Behavior Analyzer
+Detects suspicious user behavior patterns and emits alerts with cooldown.
+"""
 
 from typing import TypedDict, Annotated
 from datetime import datetime, timedelta
@@ -6,8 +9,8 @@ from collections import defaultdict
 import operator
 import os
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
 
+from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 
@@ -16,31 +19,66 @@ from event_bus.event_bus import EventBus
 load_dotenv()
 
 
+# -------------------- STATE --------------------
+
 class BehaviorState(TypedDict):
-    """State for behavior analysis agent."""
     user_id: str
     route: str
     action: str
     timestamp: str
     location: str
+
+    # Derived
+    clicks_per_minute: float
+    is_sensitive_route: bool
+    is_bot_like: bool
+    is_odd_hour: bool
+    impossible_travel: bool
+    deviates_from_baseline: bool
+    needs_ai: bool
+    classification: str
+    reason: str
+
     session_actions: Annotated[list, operator.add]
     alerts: Annotated[list, operator.add]
 
+
+# -------------------- AGENT --------------------
 
 class BehaviorAnalyzer:
     """Analyzes user behavior and detects suspicious patterns."""
 
     def __init__(self, event_bus: EventBus):
         self.event_bus = event_bus
-        api_key = os.getenv("GROQ_API_KEY")
-        self.llm = ChatGroq(model_name="llama-3.1-8b-instant", groq_api_key=api_key)
+
+        self.llm = ChatGroq(
+            model_name="llama-3.1-8b-instant",
+            groq_api_key=os.getenv("GROQ_API_KEY"),
+        )
+
+        # Stateful memory
         self.user_sessions = defaultdict(list)
-        self.user_baselines = {}
         self.user_locations = defaultdict(list)
+        self.user_baselines = {}
+
+        # Alert deduplication
+        self.alerted_users: set[str] = set()
+        self.last_alert_time: dict[str, datetime] = {}
+        self.alert_cooldown = timedelta(minutes=10)
+
+        self.sensitive_routes = {
+            "/admin",
+            "/settings",
+            "/api/admin",
+            "/transfer",
+            "/delete",
+        }
+
         self.graph = self.build_graph()
 
+    # -------------------- GRAPH --------------------
+
     def build_graph(self):
-        """Build the LangGraph workflow."""
         workflow = StateGraph(BehaviorState)
 
         workflow.add_node("collect", self.collect_action)
@@ -55,205 +93,180 @@ class BehaviorAnalyzer:
             self.should_classify,
             {
                 "classify": "classify",
-                "skip": END
-            }
+                "skip": END,
+            },
         )
         workflow.add_edge("classify", "alert")
         workflow.add_edge("alert", END)
 
         return workflow.compile()
 
+    # -------------------- NODES --------------------
+
     def collect_action(self, state: BehaviorState) -> BehaviorState:
-        """Collect user action data."""
+        """Collect user action and maintain rolling session."""
+        now = datetime.now()
+
+        user_id = state["user_id"]
+
         action_data = {
             "route": state["route"],
             "action": state.get("action", ""),
             "timestamp": state["timestamp"],
-            "location": state.get("location", "")
+            "location": state.get("location", ""),
         }
 
-        user_id = state["user_id"]
         self.user_sessions[user_id].append(action_data)
+        if len(self.user_sessions[user_id]) > 20:
+            self.user_sessions[user_id].pop(0)
 
         if state.get("location"):
-            location_entry = {
+            self.user_locations[user_id].append({
                 "location": state["location"],
-                "timestamp": state["timestamp"]
-            }
-            self.user_locations[user_id].append(location_entry)
+                "timestamp": state["timestamp"],
+            })
             if len(self.user_locations[user_id]) > 10:
                 self.user_locations[user_id].pop(0)
 
-        if len(self.user_sessions[user_id]) > 50:
-            self.user_sessions[user_id].pop(0)
+        # Cleanup expired alert cooldowns
+        for uid, last_time in list(self.last_alert_time.items()):
+            if now - last_time > self.alert_cooldown:
+                self.alerted_users.discard(uid)
+                del self.last_alert_time[uid]
 
         state["session_actions"] = [action_data]
-        print(self.user_sessions[user_id])
         return state
 
     def analyze_behavior(self, state: BehaviorState) -> BehaviorState:
-        """Analyze behavior patterns for anomalies."""
+        """Analyze behavior heuristics."""
         user_id = state["user_id"]
         route = state["route"]
-        timestamp_str = state["timestamp"]
         location = state.get("location", "")
 
+        session = self.user_sessions[user_id]
+        recent_actions = session[-10:]
+
+        # --- Time-based checks ---
         try:
-            timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            timestamp = datetime.fromisoformat(state["timestamp"])
             hour = timestamp.hour
         except Exception:
             hour = datetime.now().hour
 
-        session = self.user_sessions[user_id]
-        recent_actions = session[-10:] if len(session) >= 10 else session
+        is_odd_hour = hour < 6 or hour > 22
+        is_sensitive_route = route in self.sensitive_routes
 
-        action_count = len(recent_actions)
-        time_diff = 0
-        if len(recent_actions) >= 2:
+        # --- API-safe behavior checks ---
+        is_high_click_rate = len(recent_actions) >= 8
+        is_bot_like = len(recent_actions) >= 5 and is_sensitive_route
+
+        # --- Impossible travel ---
+        impossible_travel = False
+        if location and len(self.user_locations[user_id]) >= 2:
+            prev = self.user_locations[user_id][-2]
             try:
-                first_time = datetime.fromisoformat(recent_actions[0]["timestamp"].replace("Z", "+00:00"))
-                last_time = datetime.fromisoformat(recent_actions[-1]["timestamp"].replace("Z", "+00:00"))
-                time_diff = (last_time - first_time).total_seconds()
+                prev_time = datetime.fromisoformat(prev["timestamp"])
+                curr_time = datetime.fromisoformat(state["timestamp"])
+                minutes = (curr_time - prev_time).total_seconds() / 60
+                if prev["location"] != location and minutes < 30:
+                    impossible_travel = True
             except Exception:
                 pass
 
-        clicks_per_minute = (action_count / max(time_diff / 60, 0.1)) if time_diff > 0 else 0
-
-        is_odd_hour = hour < 6 or hour > 22
-        is_sensitive_route = route in ["/admin", "/settings", "/api/admin", "/transfer", "/delete"]
-        is_high_click_rate = clicks_per_minute > 100
-        is_bot_like = clicks_per_minute > 50 and len(recent_actions) > 5
-
-        impossible_travel = False
-        if location and len(self.user_locations[user_id]) >= 2:
-            last_location = self.user_locations[user_id][-2]["location"]
-            last_time = datetime.fromisoformat(
-                self.user_locations[user_id][-2]["timestamp"].replace("Z", "+00:00")
+        # --- Baseline logic ---
+        baseline = self.user_baselines.get(user_id)
+        if baseline is None:
+            deviates_from_baseline = True
+        else:
+            deviates_from_baseline = (
+                route not in baseline.get("normal_routes", []) or is_odd_hour
             )
-            current_time = timestamp
-            time_diff_minutes = (current_time - last_time).total_seconds() / 60
 
-            if last_location != location and time_diff_minutes < 30:
-                impossible_travel = True
-
-        baseline = self.user_baselines.get(user_id, {})
-        deviates_from_baseline = False
-        if baseline:
-            normal_routes = baseline.get("normal_routes", [])
-            normal_times = baseline.get("normal_times", [])
-            if route not in normal_routes or is_odd_hour:
-                deviates_from_baseline = True
-
-        state["clicks_per_minute"] = clicks_per_minute
-        state["is_odd_hour"] = is_odd_hour
-        state["is_sensitive_route"] = is_sensitive_route
-        state["is_high_click_rate"] = is_high_click_rate
-        state["is_bot_like"] = is_bot_like
-        state["impossible_travel"] = impossible_travel
-        state["deviates_from_baseline"] = deviates_from_baseline
-        state["needs_ai"] = (
-            is_high_click_rate or
-            is_bot_like or
-            impossible_travel or
-            (is_sensitive_route and deviates_from_baseline) or
-            (is_odd_hour and is_sensitive_route)
-        )
+        state.update({
+            "clicks_per_minute": float(len(recent_actions)),
+            "is_sensitive_route": is_sensitive_route,
+            "is_bot_like": is_bot_like,
+            "is_odd_hour": is_odd_hour,
+            "impossible_travel": impossible_travel,
+            "deviates_from_baseline": deviates_from_baseline,
+            "needs_ai": (
+                is_bot_like
+                or impossible_travel
+                or (is_sensitive_route and deviates_from_baseline)
+            ),
+        })
 
         return state
 
     def should_classify(self, state: BehaviorState) -> str:
-        """Decide if AI classification is needed."""
-        if state.get("needs_ai", False):
-            return "classify"
-        return "skip"
+        return "classify" if state.get("needs_ai") else "skip"
 
     def classify_with_ai(self, state: BehaviorState) -> BehaviorState:
-        """Use AI to classify behavior patterns."""
-        if not self.llm:
-            state["classification"] = "unknown"
-            state["reasoning"] = "AI not configured"
-            return state
-
+        """AI classification."""
         user_id = state["user_id"]
-        session = self.user_sessions[user_id]
-        recent_actions = session[-10:] if len(session) >= 10 else session
+        recent = self.user_sessions[user_id][-5:]
 
-        baseline = self.user_baselines.get(user_id, {
-            "normal_routes": ["/home", "/profile", "/shop"],
-            "normal_times": ["08:00-18:00"],
-            "normal_location": "Unknown"
-        })
+        session_summary = "\n".join(
+            f"- {a['route']} at {a['timestamp']}" for a in recent
+        )
 
-        locations = [loc["location"] for loc in self.user_locations[user_id][-5:]] if user_id in self.user_locations else []
-
-        session_summary = "\n".join([
-            f"{i+1}. {action['route']} at {action['timestamp']}"
-            for i, action in enumerate(recent_actions[-5:])
-        ])
-
-        prompt = f"""Analyze this user behavior and classify it as 'normal' or 'suspicious'.
+        prompt = f"""
+Analyze this user behavior and classify it as 'normal' or 'suspicious'.
 
 User ID: {user_id}
+
 Recent Actions:
 {session_summary}
 
-Current Action:
-- Route: {state['route']}
-- Time: {state['timestamp']}
-- Location: {state.get('location', 'Unknown')}
-- Clicks per minute: {state.get('clicks_per_minute', 0):.1f}
-
-Baseline Profile:
-- Normal routes: {baseline.get('normal_routes', [])}
-- Normal times: {baseline.get('normal_times', [])}
-- Normal location: {baseline.get('normal_location', 'Unknown')}
-
-Recent locations: {locations}
-
-Flags detected:
-- Odd hour access: {state.get('is_odd_hour', False)}
-- Sensitive route: {state.get('is_sensitive_route', False)}
-- High click rate: {state.get('is_high_click_rate', False)}
-- Bot-like behavior: {state.get('is_bot_like', False)}
-- Impossible travel: {state.get('impossible_travel', False)}
-- Deviates from baseline: {state.get('deviates_from_baseline', False)}
+Flags:
+- Sensitive route: {state['is_sensitive_route']}
+- Bot-like behavior: {state['is_bot_like']}
+- Odd hour: {state['is_odd_hour']}
+- Impossible travel: {state['impossible_travel']}
+- Baseline deviation: {state['deviates_from_baseline']}
 
 Respond with JSON only:
 {{
-    "classification": "normal" or "suspicious",
-    "reasoning": "brief explanation of why this behavior is normal or suspicious"
-}}"""
+  "classification": "normal" or "suspicious",
+  "reason": "brief explanation"
+}}
+"""
 
         try:
             response = self.llm.invoke([HumanMessage(content=prompt)])
-            result = response.content
+            content = response.content.lower()
 
-            state["reasoning"] = result
-
-            if "suspicious" in result.lower():
-                state["classification"] = "suspicious"
-            else:
-                state["classification"] = "normal"
+            state["reason"] = response.content
+            state["classification"] = (
+                "suspicious" if "suspicious" in content else "normal"
+            )
 
         except Exception as e:
             state["classification"] = "unknown"
-            state["reasoning"] = f"AI error: {str(e)}"
+            state["reason"] = f"AI error: {str(e)}"
 
         return state
 
     def emit_alert(self, state: BehaviorState) -> BehaviorState:
-        """Emit alert if suspicious behavior detected."""
-        if state.get("classification") == "suspicious":
+        """Emit alert once per user within cooldown."""
+        user_id = state["user_id"]
+
+        if (
+            state.get("classification") == "suspicious"
+            and user_id not in self.alerted_users
+        ):
+            self.alerted_users.add(user_id)
+            self.last_alert_time[user_id] = datetime.now()
+
             alert_data = {
                 "agent": "behavior_analyzer",
-                "severity": "high" if state.get("impossible_travel") or state.get("is_bot_like") else "medium",
-                "user_id": state["user_id"],
+                "severity": "high"
+                if state.get("impossible_travel") or state.get("is_bot_like")
+                else "medium",
+                "user_id": user_id,
                 "route": state["route"],
-                "clicks_per_minute": round(state.get("clicks_per_minute", 0), 1),
-                "impossible_travel": state.get("impossible_travel", False),
-                "bot_like": state.get("is_bot_like", False),
-                "reasoning": state.get("reasoning", ""),
-                "recommended_action": "Temporarily lock account / Investigate"
+                "reason": state.get("reason", ""),
+                "recommended_action": "Temporarily lock account / Investigate",
             }
 
             self.event_bus.emit("behavior_alert", alert_data)
@@ -261,26 +274,36 @@ Respond with JSON only:
 
         return state
 
-    def process_action(self, user_id: str, route: str, action: str = "", location: str = ""):
-        """Process a user action."""
-        initial_state = {
+    # -------------------- PUBLIC API --------------------
+
+    def process_action(
+        self,
+        user_id: str,
+        route: str,
+        action: str = "",
+        location: str = "",
+    ):
+        initial_state: BehaviorState = {
             "user_id": user_id,
             "route": route,
             "action": action,
             "timestamp": datetime.now().isoformat(),
             "location": location,
             "session_actions": [],
-            "alerts": []
+            "alerts": [],
         }
 
-        result = self.graph.invoke(initial_state)
-        return result
+        return self.graph.invoke(initial_state)
 
-    def set_baseline(self, user_id: str, normal_routes: list, normal_times: list, normal_location: str):
-        """Set baseline behavior profile for a user."""
+    def set_baseline(
+        self,
+        user_id: str,
+        normal_routes: list,
+        normal_times: list,
+        normal_location: str,
+    ):
         self.user_baselines[user_id] = {
             "normal_routes": normal_routes,
             "normal_times": normal_times,
-            "normal_location": normal_location
+            "normal_location": normal_location,
         }
-
