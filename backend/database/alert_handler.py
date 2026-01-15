@@ -42,6 +42,7 @@ class AlertHandler:
                 ip=data.get("ip"),
                 route=data.get("route"),
                 requests_per_minute=data.get("requests_per_minute"),
+                failed_login_count=data.get("failed_login_count"),
                 classification=classification,
                 reason=reason,
                 recommended_action=data.get("recommended_action", ""),

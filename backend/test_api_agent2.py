@@ -2,7 +2,7 @@
 
 import requests
 import json
-
+import time
 BASE_URL = "http://localhost:8000"
 
 
@@ -19,7 +19,16 @@ def test_log_agent():
             "log_type": "auth"
         }
     )
-    print(f"Normal log: {response.status_code}")
+    if response.status_code == 200:
+        result = response.json()
+        if result.get("alerts"):
+            for alert in result["alerts"]:
+                print(f"  - Agent: {alert.get('agent')}")
+                print(f"  - Reason: {alert.get('reason')}")
+                print(f"  - Severity: {alert.get('severity')}")
+        else:
+            print(f"Normal log: {response.status_code}: {response.text}")
+    time.sleep(0.1)
 
     print("\nTest 2: Repeated failed logins (should alert)")
     for i in range(5):
@@ -30,9 +39,20 @@ def test_log_agent():
                 "log_type": "auth"
             }
         )
-        if i == 4:
+        if response.status_code == 200:
             result = response.json()
-            print(f"\nResponse: {json.dumps(result, indent=2)}")
+            if result.get("alerts"):
+                print(f"\n🚨 ALERT DETECTED at request {i+1}:")
+                for alert in result["alerts"]:
+                    print(f"  - Agent: {alert.get('agent')}")
+                    print(f"  - Reason: {alert.get('reason')}")
+                    print(f"  - Severity: {alert.get('severity')}")
+        else:
+            print(f"Request {i+1} failed with status {response.status_code}: {response.text}")
+
+        # Small delay to allow processing
+        time.sleep(0.1)
+
 
     print("\nTest 3: Privilege escalation attempt (should alert)")
     response = requests.post(
@@ -42,8 +62,17 @@ def test_log_agent():
             "log_type": "auth"
         }
     )
-    result = response.json()
-    print(f"\nResponse: {json.dumps(result, indent=2)}")
+    if response.status_code == 200:
+        result = response.json()
+        if result.get("alerts"):
+            for alert in result["alerts"]:
+                print(f"  - Agent: {alert.get('agent')}")
+                print(f"  - Reason: {alert.get('reason')}")
+                print(f"  - Severity: {alert.get('severity')}")
+    else:
+        print(f"Request failed with status {response.status_code}: {response.text}")
+
+    time.sleep(0.1)
 
     print("\nTest 4: Permission denied errors (should alert)")
     response = requests.post(
@@ -53,11 +82,15 @@ def test_log_agent():
             "log_type": "error"
         }
     )
-    result = response.json()
-    print(f"\nResponse: {json.dumps(result, indent=2)}")
-
-    print("\n" + "=" * 50)
-    print("Test completed! Check database for saved alerts.")
+    if response.status_code == 200:
+        result = response.json()
+        if result.get("alerts"):
+            for alert in result["alerts"]:
+                print(f"  - Agent: {alert.get('agent')}")
+                print(f"  - Reason: {alert.get('reason')}")
+                print(f"  - Severity: {alert.get('severity')}")
+    else:
+        print(f"Request failed with status {response.status_code}: {response.text}")
 
 
 if __name__ == "__main__":

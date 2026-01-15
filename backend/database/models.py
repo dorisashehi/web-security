@@ -18,6 +18,7 @@ class Alert(Base):
     ip = Column(String(45), nullable=True, index=True)
     route = Column(String(255), nullable=True)
     requests_per_minute = Column(Integer, nullable=True)
+    failed_login_count = Column(Integer, nullable=True)  # For Agent 2: number of failed logins that triggered alert
     classification = Column(String(50), nullable=True)
     reason = Column(Text, nullable=True)
     recommended_action = Column(Text, nullable=True)
