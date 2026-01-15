@@ -37,7 +37,7 @@ class BehaviorState(TypedDict):
     deviates_from_baseline: bool
     needs_ai: bool
     classification: str
-    reason: str
+    reasoning: str
 
     session_actions: Annotated[list, operator.add]
     alerts: Annotated[list, operator.add]
@@ -228,7 +228,7 @@ Flags:
 Respond with JSON only:
 {{
   "classification": "normal" or "suspicious",
-  "reason": "brief explanation"
+  "reasoning": "brief explanation"
 }}
 """
 
@@ -236,14 +236,14 @@ Respond with JSON only:
             response = self.llm.invoke([HumanMessage(content=prompt)])
             content = response.content.lower()
 
-            state["reason"] = response.content
+            state["reasoning"] = response.content
             state["classification"] = (
                 "suspicious" if "suspicious" in content else "normal"
             )
 
         except Exception as e:
             state["classification"] = "unknown"
-            state["reason"] = f"AI error: {str(e)}"
+            state["reasoning"] = f"AI error: {str(e)}"
 
         return state
 
@@ -265,7 +265,7 @@ Respond with JSON only:
                 else "medium",
                 "user_id": user_id,
                 "route": state["route"],
-                "reason": state.get("reason", ""),
+                "reasoning": state.get("reasoning", ""),
                 "recommended_action": "Temporarily lock account / Investigate",
             }
 

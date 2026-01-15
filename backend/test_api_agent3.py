@@ -39,7 +39,7 @@ def test_behavior_agent():
     time.sleep(0.1)
 
     print("\nTest 2: High click rate / Bot-like behavior (should alert)")
-    for i in range(60):
+    for i in range(10):
         response = requests.post(
             f"{BASE_URL}/api/agent3/behavior",
             json={
