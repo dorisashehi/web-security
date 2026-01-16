@@ -1,6 +1,6 @@
 """Database models for security alerts."""
 
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
@@ -23,4 +23,19 @@ class Alert(Base):
     reason = Column(Text, nullable=True)
     recommended_action = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
+
+
+class AdminUser(Base):
+    """Admin user model for authentication."""
+
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_superuser = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

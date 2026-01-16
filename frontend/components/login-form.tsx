@@ -1,29 +1,46 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Bell } from "lucide-react"
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { loginAdmin } from "@/lib/api";
+import { saveAdminToken } from "@/lib/auth";
+import { Bell } from "lucide-react";
 
 export function LoginForm() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Navigate to dashboard on login
-    router.push("/dashboard")
-  }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const response = await loginAdmin(username, password);
+      saveAdminToken(response.access_token);
+      router.push("/dashboard");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-md animate-fadeInUp">
-      <div className="bg-[#1a1b2e] border border-[#2a2d4a] rounded-lg p-8 shadow-2xl hover-lift transition-smooth">
+      <Card className="bg-[#1a1b2e] border border-[#2a2d4a] p-8 shadow-2xl hover-lift transition-smooth">
         {/* Logo and Title */}
         <div className="flex items-center justify-center gap-3 mb-8 animate-scaleIn">
           <div className="bg-[#d97706] p-2 rounded-lg animate-glow">
@@ -33,66 +50,78 @@ export function LoginForm() {
         </div>
 
         <div className="text-center mb-8 animate-fadeIn animate-delay-100">
-          <h2 className="text-xl font-semibold text-white mb-2">Welcome Back</h2>
-          <p className="text-gray-400 text-sm">Sign in to access your security dashboard</p>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            Welcome Back
+          </h2>
+          <p className="text-gray-400 text-sm">
+            Sign in to access your security dashboard
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2 animate-fadeIn animate-delay-200">
-            <Label htmlFor="email" className="text-gray-300">
-              Email Address
-            </Label>
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-2">
+            <label
+              htmlFor="username"
+              className="text-sm font-medium text-gray-300"
+            >
+              Username
+            </label>
             <Input
-              id="email"
-              type="email"
-              placeholder="admin@security.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              className="bg-[#0f1119] border-[#2a2d4a] text-white placeholder:text-gray-500 focus:border-[#d97706] focus:ring-[#d97706] transition-fast"
+              className="bg-[#0f1119] border-[#2a2d4a] text-white placeholder:text-gray-500 focus:border-[#3b82f6]"
             />
           </div>
 
-          <div className="space-y-2 animate-fadeIn animate-delay-300">
-            <Label htmlFor="password" className="text-gray-300">
+          <div className="space-y-2">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-gray-300"
+            >
               Password
-            </Label>
+            </label>
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-[#0f1119] border-[#2a2d4a] text-white placeholder:text-gray-500 focus:border-[#d97706] focus:ring-[#d97706] transition-fast"
+              className="bg-[#0f1119] border-[#2a2d4a] text-white placeholder:text-gray-500 focus:border-[#3b82f6]"
             />
-          </div>
-
-          <div className="flex items-center justify-between text-sm animate-fadeIn animate-delay-400">
-            <label className="flex items-center gap-2 text-gray-400 cursor-pointer transition-smooth hover:text-gray-300">
-              <input type="checkbox" className="rounded border-[#2a2d4a] bg-[#0f1119]" />
-              Remember me
-            </label>
-            <Link href="#" className="text-[#d97706] hover:text-[#f59e0b] transition-fast">
-              Forgot password?
-            </Link>
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-[#d97706] hover:bg-[#b45309] text-white font-semibold transition-smooth hover-lift animate-fadeIn animate-delay-500"
+            disabled={isLoading}
+            className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white transition-smooth"
           >
-            Sign In
+            {isLoading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-400 animate-fadeIn animate-delay-500">
-          {"Don't have an account? "}
-          <Link href="/signup" className="text-[#d97706] hover:text-[#f59e0b] font-semibold transition-fast">
-            Sign up
-          </Link>
+        <div className="mt-8 pt-6 border-t border-[#2a2d4a] text-center">
+          <p className="text-sm text-gray-400">
+            Don't have an account?{" "}
+            <Link
+              href="/signup"
+              className="text-[#3b82f6] hover:underline font-medium"
+            >
+              Sign up
+            </Link>
+          </p>
         </div>
-      </div>
+      </Card>
     </div>
-  )
+  );
 }

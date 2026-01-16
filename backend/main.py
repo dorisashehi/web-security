@@ -1,10 +1,11 @@
 """FastAPI application for security detection agents."""
 
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import Session
 from typing import Optional
 
 from event_bus.event_bus import EventBus
@@ -12,8 +13,17 @@ from agents.agent1_traffic_monitor import TrafficMonitor
 from agents.agent2_log_analyzer import LogAnalyzer
 from agents.agent3_behavior_analyzer import BehaviorAnalyzer
 from database.alert_handler import AlertHandler
-from database.db import init_db, SessionLocal
-from database.models import Alert
+from database.db import init_db, SessionLocal, get_db
+from database.models import Alert, AdminUser
+from auth import (
+    authenticate_user,
+    create_access_token,
+    get_password_hash,
+    get_user_by_email,
+    get_user_by_username,
+    get_current_admin,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+)
 
 app = FastAPI(title="Security Detection API", version="1.0.0")
 
@@ -40,6 +50,26 @@ behavior_agent = BehaviorAnalyzer(event_bus)
 async def startup_event():
     """Initialize database on startup."""
     init_db()
+    # Create default admin user if no users exist
+    db = SessionLocal()
+    try:
+        user_count = db.query(AdminUser).count()
+        if user_count == 0:
+            default_user = AdminUser(
+                username="admin",
+                email="admin@security.local",
+                hashed_password=get_password_hash("admin123"),
+                is_active=True,
+                is_superuser=True
+            )
+            db.add(default_user)
+            db.commit()
+            db.refresh(default_user)
+            print("Default admin user created: username='admin', password='admin123'")
+    except Exception as e:
+        print(f"Error creating default admin user: {e}")
+    finally:
+        db.close()
 
 
 class TrafficRequest(BaseModel):
@@ -78,6 +108,35 @@ class AlertResponse(BaseModel):
     success: bool
     alerts: list
     message: Optional[str] = None
+
+
+class AdminRegisterRequest(BaseModel):
+    """Request model for admin registration."""
+    username: str
+    email: str
+    password: str
+
+
+class AdminLoginRequest(BaseModel):
+    """Request model for admin login."""
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Response model for authentication token."""
+    access_token: str
+    token_type: str = "bearer"
+
+
+class AdminInfo(BaseModel):
+    """Response model for admin user data."""
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    is_superuser: bool
+    created_at: str
 
 
 @app.get("/")
@@ -268,6 +327,108 @@ async def get_related_alerts(alert_id: int):
 
     finally:
         db.close()
+
+
+@app.post("/api/auth/register", response_model=TokenResponse)
+async def register_user(payload: AdminRegisterRequest, db: Session = Depends(get_db)):
+    """
+    Register a new admin user.
+
+    This endpoint allows creating a new admin user account.
+    Username and email must be unique.
+    After successful registration, returns a JWT token for immediate authentication.
+    """
+    # Check if username already exists
+    if get_user_by_username(db, payload.username):
+        raise HTTPException(
+            status_code=400,
+            detail="Username already registered"
+        )
+
+    # Check if email already exists
+    if get_user_by_email(db, payload.email):
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
+
+    # Validate password length
+    if len(payload.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 6 characters long"
+        )
+
+    # Create new user
+    hashed_password = get_password_hash(payload.password)
+    new_user = AdminUser(
+        username=payload.username,
+        email=payload.email,
+        hashed_password=hashed_password,
+        is_active=True,
+        is_superuser=False
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Create access token with user ID
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(new_user.id)}, expires_delta=access_token_expires
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer"
+    )
+
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+async def login_user(payload: AdminLoginRequest, db: Session = Depends(get_db)):
+    """
+    Login endpoint for admin users.
+
+    Returns a JWT access token that can be used for authenticated requests.
+    """
+    user = authenticate_user(db, payload.username, payload.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Create access token with user ID
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer"
+    )
+
+
+@app.get("/api/auth/me", response_model=AdminInfo)
+async def get_current_user_info(
+    current_user: AdminUser = Depends(get_current_admin)
+):
+    """
+    Get current authenticated user information.
+
+    Requires a valid JWT token in the Authorization header.
+    """
+    return AdminInfo(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        is_active=current_user.is_active,
+        is_superuser=current_user.is_superuser,
+        created_at=current_user.created_at.isoformat() if current_user.created_at else ""
+    )
 
 
 if __name__ == "__main__":
