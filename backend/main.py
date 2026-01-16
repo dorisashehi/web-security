@@ -1,8 +1,10 @@
 """FastAPI application for security detection agents."""
 
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import or_, and_
 from typing import Optional
 
 from event_bus.event_bus import EventBus
@@ -10,7 +12,8 @@ from agents.agent1_traffic_monitor import TrafficMonitor
 from agents.agent2_log_analyzer import LogAnalyzer
 from agents.agent3_behavior_analyzer import BehaviorAnalyzer
 from database.alert_handler import AlertHandler
-from database.db import init_db
+from database.db import init_db, SessionLocal
+from database.models import Alert
 
 app = FastAPI(title="Security Detection API", version="1.0.0")
 
@@ -157,6 +160,114 @@ async def set_user_baseline(request: BaselineRequest):
         return {"success": True, "message": f"Baseline set for user {request.user_id}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/alerts")
+async def get_all_alerts():
+    """
+    Get all alerts from the database.
+
+    This endpoint retrieves all security alerts stored in the database,
+    orders them by creation date (newest first), and returns them as JSON.
+    The frontend dashboard uses this endpoint to display alerts to users.
+    """
+    db = SessionLocal()
+
+    try:
+        all_alerts = db.query(Alert).order_by(Alert.created_at.desc()).all()
+
+        alerts_list = []
+
+        for alert in all_alerts:
+            alert_dict = {
+                "id": alert.id,
+                "agent": alert.agent,
+                "severity": alert.severity,
+                "ip": alert.ip,
+                "route": alert.route,
+                "requests_per_minute": alert.requests_per_minute,
+                "failed_login_count": alert.failed_login_count,
+                "classification": alert.classification,
+                "reason": alert.reason,
+                "recommended_action": alert.recommended_action,
+                "created_at": alert.created_at.isoformat() if alert.created_at else None
+            }
+            alerts_list.append(alert_dict)
+
+        return {
+            "success": True,
+            "alerts": alerts_list,
+            "count": len(alerts_list)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching alerts: {str(e)}")
+
+    finally:
+        db.close()
+
+
+@app.get("/api/alerts/{alert_id}/related")
+async def get_related_alerts(alert_id: int):
+    """
+    Get related alerts for a specific alert.
+
+    Returns alerts that are related by:
+    - Same IP address
+    - Same agent
+    - Recent alerts (within last 24 hours)
+    """
+    db = SessionLocal()
+
+    try:
+        current_alert = db.query(Alert).filter(Alert.id == alert_id).first()
+
+        if not current_alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+
+        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
+
+        related_alerts_query = db.query(Alert).filter(
+            Alert.id != alert_id
+        ).filter(
+            or_(
+                and_(Alert.ip.isnot(None), Alert.ip == current_alert.ip),
+                Alert.agent == current_alert.agent,
+                Alert.created_at >= twenty_four_hours_ago
+            )
+        ).order_by(Alert.created_at.desc()).limit(10).all()
+
+        related_alerts_list = []
+
+        for alert in related_alerts_query:
+            alert_dict = {
+                "id": alert.id,
+                "agent": alert.agent,
+                "severity": alert.severity,
+                "ip": alert.ip,
+                "route": alert.route,
+                "requests_per_minute": alert.requests_per_minute,
+                "failed_login_count": alert.failed_login_count,
+                "classification": alert.classification,
+                "reason": alert.reason,
+                "recommended_action": alert.recommended_action,
+                "created_at": alert.created_at.isoformat() if alert.created_at else None
+            }
+            related_alerts_list.append(alert_dict)
+
+        return {
+            "success": True,
+            "related_alerts": related_alerts_list,
+            "count": len(related_alerts_list)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching related alerts: {str(e)}")
+
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
