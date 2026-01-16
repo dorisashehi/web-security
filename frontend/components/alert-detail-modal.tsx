@@ -36,12 +36,18 @@ interface AlertDetailModalProps {
     time: string;
     ip?: string;
     recommended_action?: string;
+    agent?: string;
+    user_agent?: string;
+    geo?: string;
+    detection_timestamp?: string;
+    requests_per_minute?: number;
     details?: {
       origin: string;
       rate: string;
       location: string;
       tags: string[];
       fullDescription: string;
+      requestPattern?: string;
     };
   };
   isOpen: boolean;
@@ -353,9 +359,87 @@ export function AlertDetailModal({
                           {alert.details?.location &&
                           alert.details.location !== "Unknown"
                             ? alert.details.location
-                            : "Unknown"}
+                            : alert.geo || "Unknown"}
                         </span>
                       </li>
+                      {/* Agent 1 specific fields */}
+                      {alert.agent === "traffic_monitor" && (
+                        <>
+                          {alert.user_agent && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-300">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">
+                                  User Agent:{" "}
+                                </span>
+                                <span className="font-mono text-xs">
+                                  {alert.user_agent}
+                                </span>
+                              </span>
+                            </li>
+                          )}
+                          {alert.detection_timestamp && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-400">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">
+                                  Detection Time:{" "}
+                                </span>
+                                {new Date(
+                                  alert.detection_timestamp
+                                ).toLocaleString()}
+                              </span>
+                            </li>
+                          )}
+                          {alert.details?.requestPattern && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-500">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">
+                                  Request Pattern:{" "}
+                                </span>
+                                {alert.details.requestPattern}
+                              </span>
+                            </li>
+                          )}
+                        </>
+                      )}
                     </ul>
                     <div className="flex gap-2 mt-4">
                       <Badge

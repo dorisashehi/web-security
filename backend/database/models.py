@@ -23,6 +23,10 @@ class Alert(Base):
     reason = Column(Text, nullable=True)
     recommended_action = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
+    # Agent 1 (Traffic Monitor) specific fields
+    user_agent = Column(String(255), nullable=True)  # Browser/client info
+    geo = Column(String(100), nullable=True)  # Geographic location
+    detection_timestamp = Column(DateTime, nullable=True)  # Exact request time when detected
 
 
 class AdminUser(Base):

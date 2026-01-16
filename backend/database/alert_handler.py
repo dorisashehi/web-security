@@ -46,7 +46,11 @@ class AlertHandler:
                 classification=classification,
                 reason=reason,
                 recommended_action=data.get("recommended_action", ""),
-                created_at=created_at
+                created_at=created_at,
+                # Agent 1 specific fields
+                user_agent=data.get("user_agent"),
+                geo=data.get("geo"),
+                detection_timestamp=self.parse_timestamp(data.get("detection_timestamp")) if data.get("detection_timestamp") else None,
             )
 
             db.add(alert)

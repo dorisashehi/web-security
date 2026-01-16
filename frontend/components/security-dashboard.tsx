@@ -31,12 +31,18 @@ interface Alert {
   recommended_action?: string;
   agent?: string;
   created_at?: string;
+  // Agent 1 specific fields
+  user_agent?: string;
+  geo?: string;
+  detection_timestamp?: string;
+  requests_per_minute?: number;
   details?: {
     origin: string;
     rate: string;
     location: string;
     tags: string[];
     fullDescription: string;
+    requestPattern?: string;
   };
 }
 
@@ -130,6 +136,16 @@ export function SecurityDashboard() {
       const data = await response.json();
 
       if (data.success && data.alerts) {
+        // Get request pattern description based on requests_per_minute
+        const getRequestPattern = (rpm: number | null | undefined): string => {
+          if (!rpm) return "No pattern data";
+          if (rpm < 10) return "Low traffic - Normal pattern";
+          if (rpm < 50) return "Moderate traffic - Normal pattern";
+          if (rpm < 100) return "High traffic - Potential spike";
+          if (rpm < 300) return "Very high traffic - Suspicious spike";
+          return "Extreme traffic - Possible attack pattern";
+        };
+
         const formattedAlerts: Alert[] = data.alerts.map((alert: any) => ({
           id: alert.id,
           title: getAlertTitle(alert.agent, alert.classification, alert.reason),
@@ -141,14 +157,21 @@ export function SecurityDashboard() {
           recommended_action: alert.recommended_action || undefined,
           agent: alert.agent || undefined,
           created_at: alert.created_at || undefined,
+          // Agent 1 specific fields
+          user_agent: alert.user_agent || undefined,
+          geo: alert.geo || undefined,
+          detection_timestamp: alert.detection_timestamp || undefined,
+          requests_per_minute: alert.requests_per_minute || undefined,
           details: {
             origin: alert.ip ? `${alert.ip} (Origin)` : "Unknown (Origin)",
             rate: alert.requests_per_minute
               ? `${alert.requests_per_minute} req/min`
               : "N/A",
-            location: "Unknown",
+            location: alert.geo || "Unknown",
             tags: alert.classification ? [alert.classification] : [],
             fullDescription: alert.reason || "No additional details available.",
+            // Agent 1 additional info
+            requestPattern: getRequestPattern(alert.requests_per_minute),
           },
         }));
         setAlerts(formattedAlerts);
@@ -202,6 +225,16 @@ export function SecurityDashboard() {
       const data = await response.json();
 
       if (data.success && data.related_alerts) {
+        // Get request pattern description based on requests_per_minute
+        const getRequestPattern = (rpm: number | null | undefined): string => {
+          if (!rpm) return "No pattern data";
+          if (rpm < 10) return "Low traffic - Normal pattern";
+          if (rpm < 50) return "Moderate traffic - Normal pattern";
+          if (rpm < 100) return "High traffic - Potential spike";
+          if (rpm < 300) return "Very high traffic - Suspicious spike";
+          return "Extreme traffic - Possible attack pattern";
+        };
+
         const formattedRelatedAlerts: Alert[] = data.related_alerts.map(
           (alert: any) => ({
             id: alert.id,
@@ -218,15 +251,22 @@ export function SecurityDashboard() {
             recommended_action: alert.recommended_action || undefined,
             agent: alert.agent || undefined,
             created_at: alert.created_at || undefined,
+            // Agent 1 specific fields
+            user_agent: alert.user_agent || undefined,
+            geo: alert.geo || undefined,
+            detection_timestamp: alert.detection_timestamp || undefined,
+            requests_per_minute: alert.requests_per_minute || undefined,
             details: {
               origin: alert.ip ? `${alert.ip} (Origin)` : "Unknown (Origin)",
               rate: alert.requests_per_minute
                 ? `${alert.requests_per_minute} req/min`
                 : "N/A",
-              location: "Unknown",
+              location: alert.geo || "Unknown",
               tags: alert.classification ? [alert.classification] : [],
               fullDescription:
                 alert.reason || "No additional details available.",
+              // Agent 1 additional info
+              requestPattern: getRequestPattern(alert.requests_per_minute),
             },
           })
         );

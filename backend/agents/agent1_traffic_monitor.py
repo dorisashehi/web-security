@@ -181,6 +181,9 @@ Respond with JSON only:
                 "requests_per_minute": state["requests_last_min"],
                 "reason": state.get("reason", ""),
                 "recommended_action": "Block IP / Investigate",
+                "user_agent": state.get("user_agent", ""),
+                "geo": state.get("geo", ""),
+                "detection_timestamp": state.get("timestamp", datetime.now().isoformat()),
             }
 
             self.event_bus.emit("traffic_alert", alert_data)

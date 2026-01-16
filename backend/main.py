@@ -249,7 +249,11 @@ async def get_all_alerts():
                 "classification": alert.classification,
                 "reason": alert.reason,
                 "recommended_action": alert.recommended_action,
-                "created_at": alert.created_at.isoformat() if alert.created_at else None
+                "created_at": alert.created_at.isoformat() if alert.created_at else None,
+                # Agent 1 specific fields
+                "user_agent": alert.user_agent,
+                "geo": alert.geo,
+                "detection_timestamp": alert.detection_timestamp.isoformat() if alert.detection_timestamp else None,
             }
             alerts_list.append(alert_dict)
 
@@ -310,7 +314,11 @@ async def get_related_alerts(alert_id: int):
                 "classification": alert.classification,
                 "reason": alert.reason,
                 "recommended_action": alert.recommended_action,
-                "created_at": alert.created_at.isoformat() if alert.created_at else None
+                "created_at": alert.created_at.isoformat() if alert.created_at else None,
+                # Agent 1 specific fields
+                "user_agent": alert.user_agent,
+                "geo": alert.geo,
+                "detection_timestamp": alert.detection_timestamp.isoformat() if alert.detection_timestamp else None,
             }
             related_alerts_list.append(alert_dict)
 
