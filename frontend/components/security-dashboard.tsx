@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   Bell,
-  ChevronLeft,
   ChevronRight,
   Clock,
   Shield,
@@ -620,32 +619,6 @@ export function SecurityDashboard() {
             isDarkMode ? "border-[#2a2d4a]" : "border-gray-200"
           } p-6 animate-slideInLeft animate-delay-100`}
         >
-          {/* Navigation */}
-          <div className="flex items-center gap-2 mb-6">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`${
-                isDarkMode
-                  ? "text-gray-600 hover:bg-[#1a1b2e]"
-                  : "text-gray-400 hover:bg-gray-200"
-              } transition-smooth hover-lift`}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`${
-                isDarkMode
-                  ? "text-gray-600 hover:bg-[#1a1b2e]"
-                  : "text-gray-400 hover:bg-gray-200"
-              } transition-smooth hover-lift`}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-
           {/* Section Title */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-4">
@@ -804,7 +777,7 @@ export function SecurityDashboard() {
             </div>
 
             {/* Alert Cards */}
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto pr-2 custom-scrollbar">
               {filteredAlerts.length > 0 ? (
                 filteredAlerts.map((alert, index) => {
                   const Icon = alert.icon;
