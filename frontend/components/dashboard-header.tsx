@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
+import { removeAdminToken } from "@/lib/auth";
 
 interface DashboardHeaderProps {
   alertsCount: number;
@@ -28,6 +29,7 @@ export function DashboardHeader({
   const router = useRouter();
 
   const handleLogout = () => {
+    removeAdminToken();
     router.push("/login");
   };
 

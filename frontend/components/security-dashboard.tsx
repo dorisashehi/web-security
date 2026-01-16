@@ -17,6 +17,7 @@ import { AlertList } from "./alert-list";
 import { IncidentsSummary } from "./incidents-summary";
 import { AlertsTrend } from "./alerts-trend";
 import { TopSuspiciousIPs } from "./top-suspicious-ips";
+import { getAdminToken, removeAdminToken } from "@/lib/auth";
 
 interface Alert {
   id: number;
@@ -101,7 +102,31 @@ export function SecurityDashboard() {
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/alerts");
+      const token = getAdminToken();
+      if (!token) {
+        // No token found, redirect to login
+        removeAdminToken();
+        router.push("/login");
+        return;
+      }
+
+      const response = await fetch("http://localhost:8000/api/alerts", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Check if token expired (401)
+      if (response.status === 401) {
+        removeAdminToken();
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch alerts: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success && data.alerts) {
@@ -128,16 +153,52 @@ export function SecurityDashboard() {
         }));
         setAlerts(formattedAlerts);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a token expiration error
+      if (
+        error?.status === 401 ||
+        (error instanceof Error &&
+          (error.message.includes("expired") ||
+            error.message.includes("Invalid or expired token") ||
+            error.message.includes("401")))
+      ) {
+        removeAdminToken();
+        router.push("/login");
+        return;
+      }
       console.error("Error fetching alerts:", error);
     }
   };
 
   const fetchRelatedAlerts = async (alertId: number) => {
     try {
+      const token = getAdminToken();
+      if (!token) {
+        removeAdminToken();
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(
-        `http://localhost:8000/api/alerts/${alertId}/related`
+        `http://localhost:8000/api/alerts/${alertId}/related`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
+
+      // Check if token expired (401)
+      if (response.status === 401) {
+        removeAdminToken();
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch related alerts: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success && data.related_alerts) {
@@ -171,7 +232,19 @@ export function SecurityDashboard() {
         );
         setRelatedAlerts(formattedRelatedAlerts);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a token expiration error
+      if (
+        error?.status === 401 ||
+        (error instanceof Error &&
+          (error.message.includes("expired") ||
+            error.message.includes("Invalid or expired token") ||
+            error.message.includes("401")))
+      ) {
+        removeAdminToken();
+        router.push("/login");
+        return;
+      }
       console.error("Error fetching related alerts:", error);
       setRelatedAlerts([]);
     }
@@ -181,6 +254,7 @@ export function SecurityDashboard() {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 10000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
