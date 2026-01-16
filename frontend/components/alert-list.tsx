@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { AlertCard } from "./alert-card";
 import { AlertFilters } from "./alert-filters";
 
@@ -50,20 +50,13 @@ export function AlertList({
       <div className="p-6">
         {/* Section Title */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <h2
-              className={`text-2xl font-semibold ${
-                isDarkMode ? "text-white" : "text-gray-900"
-              }`}
-            >
-              Real-Time Security Alerts
-            </h2>
-            <Clock
-              className={`h-5 w-5 ${
-                isDarkMode ? "text-gray-500" : "text-gray-400"
-              } animate-pulse-slow`}
-            />
-          </div>
+          <p
+            className={`text-base font-medium ${
+              isDarkMode ? "text-gray-300" : "text-gray-700"
+            } mb-4`}
+          >
+            Real-time monitoring across network, logs, and user activity
+          </p>
 
           {/* Filter Tabs */}
           <AlertFilters
@@ -82,7 +75,7 @@ export function AlertList({
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-5 w-5 text-red-500 animate-pulse-slow" />
             <h3 className="text-lg font-semibold text-red-500">
-              LIVE ALERTS
+              HIGH-RISK THREATS
             </h3>
             <span
               className={`text-sm ${
@@ -138,4 +131,3 @@ export function AlertList({
     </div>
   );
 }
-

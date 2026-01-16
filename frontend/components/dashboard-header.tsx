@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Clock, LogOut, UserCircle, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, Clock, LogOut, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
-import { removeAdminToken } from "@/lib/auth";
+import { removeAdminToken, getAdminToken } from "@/lib/auth";
+import { getCurrentAdminInfo, AdminInfo } from "@/lib/api";
 
 interface DashboardHeaderProps {
   alertsCount: number;
@@ -27,6 +29,27 @@ export function DashboardHeader({
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === "dark";
   const router = useRouter();
+  const [userInfo, setUserInfo] = useState<AdminInfo | null>(null);
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const token = getAdminToken();
+        if (token) {
+          const info = await getCurrentAdminInfo(token);
+          setUserInfo(info);
+        }
+      } catch (error) {
+        // If token is invalid, remove it and redirect
+        if (error instanceof Error && error.message.includes("401")) {
+          removeAdminToken();
+          router.push("/login");
+        }
+      }
+    };
+
+    fetchUserInfo();
+  }, [router]);
 
   const handleLogout = () => {
     removeAdminToken();
@@ -49,7 +72,7 @@ export function DashboardHeader({
               isDarkMode ? "text-white" : "text-gray-900"
             }`}
           >
-            Real-Time Security Alerts Dashboard
+            CyberPulse Monitor
           </h1>
         </div>
 
@@ -133,22 +156,17 @@ export function DashboardHeader({
               <DropdownMenuLabel
                 className={isDarkMode ? "text-gray-300" : "text-gray-900"}
               >
-                My Account
+                {userInfo ? (
+                  <div className="flex flex-col">
+                    <span className="font-semibold">{userInfo.username}</span>
+                    <span className="text-xs text-gray-400 font-normal">
+                      {userInfo.email}
+                    </span>
+                  </div>
+                ) : (
+                  "My Account"
+                )}
               </DropdownMenuLabel>
-              <DropdownMenuSeparator
-                className={isDarkMode ? "bg-[#2a2d4a]" : "bg-gray-200"}
-              />
-              <DropdownMenuItem
-                onClick={() => router.push("/about")}
-                className={`cursor-pointer ${
-                  isDarkMode
-                    ? "hover:bg-[#2a2d4a] focus:bg-[#2a2d4a]"
-                    : "hover:bg-gray-100"
-                } transition-fast`}
-              >
-                <Info className="mr-2 h-4 w-4" />
-                <span>About</span>
-              </DropdownMenuItem>
               <DropdownMenuSeparator
                 className={isDarkMode ? "bg-[#2a2d4a]" : "bg-gray-200"}
               />
@@ -170,4 +188,3 @@ export function DashboardHeader({
     </header>
   );
 }
-
