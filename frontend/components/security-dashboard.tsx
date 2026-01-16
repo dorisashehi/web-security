@@ -75,6 +75,7 @@ export function SecurityDashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [relatedAlerts, setRelatedAlerts] = useState<Alert[]>([]);
   const [filterAgent, setFilterAgent] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState<string>("");
   const router = useRouter();
 
   const getAgentIcon = (agent: string) => {
@@ -218,6 +219,23 @@ export function SecurityDashboard() {
       setRelatedAlerts([]);
     }
   }, [selectedAlert]);
+
+  // Update current time every second
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      setCurrentTime(timeString);
+    };
+
+    updateTime(); // Set initial time
+    const timeInterval = setInterval(updateTime, 1000);
+    return () => clearInterval(timeInterval);
+  }, []);
 
   // Calculate incidents summary statistics
   const calculateSummaryStats = () => {
@@ -545,7 +563,9 @@ export function SecurityDashboard() {
               } transition-smooth hover:text-white`}
             >
               <Clock className="h-4 w-4" />
-              <span className="text-sm font-medium">10:45 AM</span>
+              <span className="text-sm font-medium">
+                {currentTime || "Loading..."}
+              </span>
             </div>
 
             {/* User Dropdown Menu */}

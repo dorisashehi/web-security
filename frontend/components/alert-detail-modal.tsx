@@ -668,7 +668,7 @@ export function AlertDetailModal({
                     }`}
                   />
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                   {relatedAlerts.length > 0 ? (
                     relatedAlerts.map(
                       (relatedAlert: RelatedAlert, index: number) => (
