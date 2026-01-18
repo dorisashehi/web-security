@@ -254,6 +254,22 @@ async def get_all_alerts():
                 "user_agent": alert.user_agent,
                 "geo": alert.geo,
                 "detection_timestamp": alert.detection_timestamp.isoformat() if alert.detection_timestamp else None,
+                # Agent 2 specific fields
+                "log_entry": alert.log_entry,
+                "log_type": alert.log_type,
+                "username": alert.username,
+                "log_timestamp": alert.log_timestamp.isoformat() if alert.log_timestamp else None,
+                # Agent 3 specific fields
+                "user_id": alert.user_id,
+                "action": alert.action,
+                "behavior_location": alert.behavior_location,
+                "clicks_per_minute": alert.clicks_per_minute,
+                "is_sensitive_route": alert.is_sensitive_route,
+                "is_bot_like": alert.is_bot_like,
+                "is_odd_hour": alert.is_odd_hour,
+                "impossible_travel": alert.impossible_travel,
+                "deviates_from_baseline": alert.deviates_from_baseline,
+                "behavior_timestamp": alert.behavior_timestamp.isoformat() if alert.behavior_timestamp else None,
             }
             alerts_list.append(alert_dict)
 
@@ -319,6 +335,22 @@ async def get_related_alerts(alert_id: int):
                 "user_agent": alert.user_agent,
                 "geo": alert.geo,
                 "detection_timestamp": alert.detection_timestamp.isoformat() if alert.detection_timestamp else None,
+                # Agent 2 specific fields
+                "log_entry": alert.log_entry,
+                "log_type": alert.log_type,
+                "username": alert.username,
+                "log_timestamp": alert.log_timestamp.isoformat() if alert.log_timestamp else None,
+                # Agent 3 specific fields
+                "user_id": alert.user_id,
+                "action": alert.action,
+                "behavior_location": alert.behavior_location,
+                "clicks_per_minute": alert.clicks_per_minute,
+                "is_sensitive_route": alert.is_sensitive_route,
+                "is_bot_like": alert.is_bot_like,
+                "is_odd_hour": alert.is_odd_hour,
+                "impossible_travel": alert.impossible_travel,
+                "deviates_from_baseline": alert.deviates_from_baseline,
+                "behavior_timestamp": alert.behavior_timestamp.isoformat() if alert.behavior_timestamp else None,
             }
             related_alerts_list.append(alert_dict)
 

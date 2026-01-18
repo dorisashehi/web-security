@@ -27,6 +27,22 @@ class Alert(Base):
     user_agent = Column(String(255), nullable=True)  # Browser/client info
     geo = Column(String(100), nullable=True)  # Geographic location
     detection_timestamp = Column(DateTime, nullable=True)  # Exact request time when detected
+    # Agent 2 (Log Analyzer) specific fields
+    log_entry = Column(Text, nullable=True)  # Raw log line
+    log_type = Column(String(50), nullable=True)  # Log category (auth, error, system)
+    username = Column(String(100), nullable=True)  # Username extracted from log
+    log_timestamp = Column(DateTime, nullable=True)  # Log entry timestamp
+    # Agent 3 (Behavior Analyzer) specific fields
+    user_id = Column(String(100), nullable=True)  # User identifier
+    action = Column(String(100), nullable=True)  # Action performed
+    behavior_location = Column(String(100), nullable=True)  # User geographic location
+    clicks_per_minute = Column(String(50), nullable=True)  # Activity rate (stored as string for display)
+    is_sensitive_route = Column(Boolean, nullable=True)  # Accessed sensitive endpoint
+    is_bot_like = Column(Boolean, nullable=True)  # Bot-like behavior detected
+    is_odd_hour = Column(Boolean, nullable=True)  # Activity outside normal hours
+    impossible_travel = Column(Boolean, nullable=True)  # Location change too fast
+    deviates_from_baseline = Column(Boolean, nullable=True)  # Differs from normal pattern
+    behavior_timestamp = Column(DateTime, nullable=True)  # Action timestamp
 
 
 class AdminUser(Base):

@@ -36,6 +36,23 @@ interface Alert {
   geo?: string;
   detection_timestamp?: string;
   requests_per_minute?: number;
+  // Agent 2 specific fields
+  log_entry?: string;
+  log_type?: string;
+  username?: string;
+  log_timestamp?: string;
+  alert_pattern?: string;
+  // Agent 3 specific fields
+  user_id?: string;
+  action?: string;
+  behavior_location?: string;
+  clicks_per_minute?: string;
+  is_sensitive_route?: boolean;
+  is_bot_like?: boolean;
+  is_odd_hour?: boolean;
+  impossible_travel?: boolean;
+  deviates_from_baseline?: boolean;
+  behavior_timestamp?: string;
   details?: {
     origin: string;
     rate: string;
@@ -146,6 +163,23 @@ export function SecurityDashboard() {
           return "Extreme traffic - Possible attack pattern";
         };
 
+        // Generate alert pattern for Agent 2
+        const getAlertPattern = (
+          failedLoginCount: number | null | undefined
+        ): string => {
+          if (!failedLoginCount || failedLoginCount === 0) {
+            return "No failed login pattern detected";
+          } else if (failedLoginCount === 1) {
+            return "1 failed attempt detected";
+          } else if (failedLoginCount === 2) {
+            return "2 failed attempts in 2 minutes";
+          } else if (failedLoginCount >= 3) {
+            return `${failedLoginCount} failed attempts in 2 minutes`;
+          } else {
+            return "Multiple failed login attempts detected";
+          }
+        };
+
         const formattedAlerts: Alert[] = data.alerts.map((alert: any) => ({
           id: alert.id,
           title: getAlertTitle(alert.agent, alert.classification, alert.reason),
@@ -162,6 +196,23 @@ export function SecurityDashboard() {
           geo: alert.geo || undefined,
           detection_timestamp: alert.detection_timestamp || undefined,
           requests_per_minute: alert.requests_per_minute || undefined,
+          // Agent 2 specific fields
+          log_entry: alert.log_entry || undefined,
+          log_type: alert.log_type || undefined,
+          username: alert.username || undefined,
+          log_timestamp: alert.log_timestamp || undefined,
+          alert_pattern: getAlertPattern(alert.failed_login_count),
+          // Agent 3 specific fields
+          user_id: alert.user_id || undefined,
+          action: alert.action || undefined,
+          behavior_location: alert.behavior_location || undefined,
+          clicks_per_minute: alert.clicks_per_minute || undefined,
+          is_sensitive_route: alert.is_sensitive_route || undefined,
+          is_bot_like: alert.is_bot_like || undefined,
+          is_odd_hour: alert.is_odd_hour || undefined,
+          impossible_travel: alert.impossible_travel || undefined,
+          deviates_from_baseline: alert.deviates_from_baseline || undefined,
+          behavior_timestamp: alert.behavior_timestamp || undefined,
           details: {
             origin: alert.ip ? `${alert.ip} (Origin)` : "Unknown (Origin)",
             rate: alert.requests_per_minute
@@ -235,6 +286,23 @@ export function SecurityDashboard() {
           return "Extreme traffic - Possible attack pattern";
         };
 
+        // Generate alert pattern for Agent 2
+        const getAlertPattern = (
+          failedLoginCount: number | null | undefined
+        ): string => {
+          if (!failedLoginCount || failedLoginCount === 0) {
+            return "No failed login pattern detected";
+          } else if (failedLoginCount === 1) {
+            return "1 failed attempt detected";
+          } else if (failedLoginCount === 2) {
+            return "2 failed attempts in 2 minutes";
+          } else if (failedLoginCount >= 3) {
+            return `${failedLoginCount} failed attempts in 2 minutes`;
+          } else {
+            return "Multiple failed login attempts detected";
+          }
+        };
+
         const formattedRelatedAlerts: Alert[] = data.related_alerts.map(
           (alert: any) => ({
             id: alert.id,
@@ -256,6 +324,23 @@ export function SecurityDashboard() {
             geo: alert.geo || undefined,
             detection_timestamp: alert.detection_timestamp || undefined,
             requests_per_minute: alert.requests_per_minute || undefined,
+            // Agent 2 specific fields
+            log_entry: alert.log_entry || undefined,
+            log_type: alert.log_type || undefined,
+            username: alert.username || undefined,
+            log_timestamp: alert.log_timestamp || undefined,
+            alert_pattern: getAlertPattern(alert.failed_login_count),
+            // Agent 3 specific fields
+            user_id: alert.user_id || undefined,
+            action: alert.action || undefined,
+            behavior_location: alert.behavior_location || undefined,
+            clicks_per_minute: alert.clicks_per_minute || undefined,
+            is_sensitive_route: alert.is_sensitive_route || undefined,
+            is_bot_like: alert.is_bot_like || undefined,
+            is_odd_hour: alert.is_odd_hour || undefined,
+            impossible_travel: alert.impossible_travel || undefined,
+            deviates_from_baseline: alert.deviates_from_baseline || undefined,
+            behavior_timestamp: alert.behavior_timestamp || undefined,
             details: {
               origin: alert.ip ? `${alert.ip} (Origin)` : "Unknown (Origin)",
               rate: alert.requests_per_minute

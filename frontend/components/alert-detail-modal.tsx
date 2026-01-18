@@ -9,7 +9,6 @@ import {
   Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/components/theme-provider";
 
 interface RelatedAlert {
@@ -41,6 +40,21 @@ interface AlertDetailModalProps {
     geo?: string;
     detection_timestamp?: string;
     requests_per_minute?: number;
+    log_entry?: string;
+    log_type?: string;
+    username?: string;
+    log_timestamp?: string;
+    alert_pattern?: string;
+    user_id?: string;
+    action?: string;
+    behavior_location?: string;
+    clicks_per_minute?: string;
+    is_sensitive_route?: boolean;
+    is_bot_like?: boolean;
+    is_odd_hour?: boolean;
+    impossible_travel?: boolean;
+    deviates_from_baseline?: boolean;
+    behavior_timestamp?: string;
     details?: {
       origin: string;
       rate: string;
@@ -258,8 +272,8 @@ export function AlertDetailModal({
                 </div>
 
                 {/* Information Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  {/* Left side - Info details */}
+                <div className="mb-4">
+                  {/* Info details */}
                   <div
                     className={`${
                       theme === "light"
@@ -268,26 +282,24 @@ export function AlertDetailModal({
                     } border rounded-lg p-4 transition-smooth hover-lift`}
                   >
                     <ul className="space-y-3">
-                      <li className="flex items-center gap-2 animate-fadeIn">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            theme === "light" ? "bg-gray-400" : "bg-gray-500"
-                          }`}
-                        ></span>
-                        <span
-                          className={`text-sm ${
-                            theme === "light"
-                              ? "text-gray-700"
-                              : "text-gray-300"
-                          }`}
-                        >
-                          <span className="font-medium">IP: </span>
-                          <span className="font-mono font-semibold">
-                            {alert.details?.origin?.split(" ")[0] ||
-                              alert.ip ||
-                              "Unknown"}
-                          </span>
-                          {alert.details?.origin?.split(" ")[0] || alert.ip ? (
+                      {(alert.details?.origin?.split(" ")[0] || alert.ip) && (
+                        <li className="flex items-center gap-2 animate-fadeIn">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              theme === "light" ? "bg-gray-400" : "bg-gray-500"
+                            }`}
+                          ></span>
+                          <span
+                            className={`text-sm ${
+                              theme === "light"
+                                ? "text-gray-700"
+                                : "text-gray-300"
+                            }`}
+                          >
+                            <span className="font-medium">IP: </span>
+                            <span className="font-mono font-semibold">
+                              {alert.details?.origin?.split(" ")[0] || alert.ip}
+                            </span>
                             <span
                               className={
                                 theme === "light"
@@ -301,67 +313,63 @@ export function AlertDetailModal({
                                 .slice(1)
                                 .join(" ") || "(Origin)"}
                             </span>
-                          ) : null}
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2 animate-fadeIn animate-delay-100">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            theme === "light" ? "bg-gray-400" : "bg-gray-500"
-                          }`}
-                        ></span>
-                        <span
-                          className={`text-sm ${
-                            theme === "light"
-                              ? "text-gray-700"
-                              : "text-gray-300"
-                          }`}
-                        >
-                          <span className="font-medium">Rate: </span>
-                          {alert.details?.rate &&
-                          alert.details.rate !== "N/A" ? (
-                            <>
-                              <span className="font-semibold">
-                                {alert.details.rate.split(" ")[0]}
-                              </span>{" "}
-                              <span
-                                className={
-                                  theme === "light"
-                                    ? "text-gray-500"
-                                    : "text-gray-500"
-                                }
-                              >
-                                {alert.details.rate
-                                  .split(" ")
-                                  .slice(1)
-                                  .join(" ")}
-                              </span>
-                            </>
-                          ) : (
-                            <span>Unknown</span>
-                          )}
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2 animate-fadeIn animate-delay-200">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            theme === "light" ? "bg-gray-400" : "bg-gray-500"
-                          }`}
-                        ></span>
-                        <span
-                          className={`text-sm ${
-                            theme === "light"
-                              ? "text-gray-700"
-                              : "text-gray-300"
-                          }`}
-                        >
-                          <span className="font-medium">Location: </span>
-                          {alert.details?.location &&
-                          alert.details.location !== "Unknown"
-                            ? alert.details.location
-                            : alert.geo || "Unknown"}
-                        </span>
-                      </li>
+                          </span>
+                        </li>
+                      )}
+                      {alert.details?.rate && alert.details.rate !== "N/A" && (
+                        <li className="flex items-center gap-2 animate-fadeIn animate-delay-100">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              theme === "light" ? "bg-gray-400" : "bg-gray-500"
+                            }`}
+                          ></span>
+                          <span
+                            className={`text-sm ${
+                              theme === "light"
+                                ? "text-gray-700"
+                                : "text-gray-300"
+                            }`}
+                          >
+                            <span className="font-medium">Rate: </span>
+                            <span className="font-semibold">
+                              {alert.details.rate.split(" ")[0]}
+                            </span>{" "}
+                            <span
+                              className={
+                                theme === "light"
+                                  ? "text-gray-500"
+                                  : "text-gray-500"
+                              }
+                            >
+                              {alert.details.rate.split(" ").slice(1).join(" ")}
+                            </span>
+                          </span>
+                        </li>
+                      )}
+                      {(alert.details?.location &&
+                        alert.details.location !== "Unknown") ||
+                      (alert.geo && alert.geo !== "Unknown") ? (
+                        <li className="flex items-center gap-2 animate-fadeIn animate-delay-200">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              theme === "light" ? "bg-gray-400" : "bg-gray-500"
+                            }`}
+                          ></span>
+                          <span
+                            className={`text-sm ${
+                              theme === "light"
+                                ? "text-gray-700"
+                                : "text-gray-300"
+                            }`}
+                          >
+                            <span className="font-medium">Location: </span>
+                            {alert.details?.location &&
+                            alert.details.location !== "Unknown"
+                              ? alert.details.location
+                              : alert.geo}
+                          </span>
+                        </li>
+                      ) : null}
                       {/* Agent 1 specific fields */}
                       {alert.agent === "traffic_monitor" && (
                         <>
@@ -415,7 +423,82 @@ export function AlertDetailModal({
                               </span>
                             </li>
                           )}
-                          {alert.details?.requestPattern && (
+                          {alert.details?.requestPattern &&
+                            alert.details.requestPattern !==
+                              "No pattern data" && (
+                              <li className="flex items-center gap-2 animate-fadeIn animate-delay-500">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    theme === "light"
+                                      ? "bg-gray-400"
+                                      : "bg-gray-500"
+                                  }`}
+                                ></span>
+                                <span
+                                  className={`text-sm ${
+                                    theme === "light"
+                                      ? "text-gray-700"
+                                      : "text-gray-300"
+                                  }`}
+                                >
+                                  <span className="font-medium">
+                                    Request Pattern:{" "}
+                                  </span>
+                                  {alert.details.requestPattern}
+                                </span>
+                              </li>
+                            )}
+                        </>
+                      )}
+                      {/* Agent 2 specific fields */}
+                      {alert.agent === "log_analyzer" && (
+                        <>
+                          {alert.log_entry && (
+                            <li className="flex items-start gap-2 animate-fadeIn animate-delay-300">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full mt-2 ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">Log Entry: </span>
+                                <span className="font-mono text-xs break-words">
+                                  {alert.log_entry}
+                                </span>
+                              </span>
+                            </li>
+                          )}
+                          {alert.log_type && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-400">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">Log Type: </span>
+                                {alert.log_type.charAt(0).toUpperCase() +
+                                  alert.log_type.slice(1)}
+                              </span>
+                            </li>
+                          )}
+                          {alert.username && (
                             <li className="flex items-center gap-2 animate-fadeIn animate-delay-500">
                               <span
                                 className={`w-1.5 h-1.5 rounded-full ${
@@ -431,172 +514,253 @@ export function AlertDetailModal({
                                     : "text-gray-300"
                                 }`}
                               >
-                                <span className="font-medium">
-                                  Request Pattern:{" "}
-                                </span>
-                                {alert.details.requestPattern}
+                                <span className="font-medium">Username: </span>
+                                {alert.username}
                               </span>
+                            </li>
+                          )}
+                          {alert.log_timestamp && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-600">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">Timestamp: </span>
+                                {new Date(alert.log_timestamp).toLocaleString()}
+                              </span>
+                            </li>
+                          )}
+                          {alert.alert_pattern &&
+                            alert.alert_pattern !==
+                              "No failed login pattern detected" && (
+                              <li className="flex items-center gap-2 animate-fadeIn animate-delay-700">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    theme === "light"
+                                      ? "bg-gray-400"
+                                      : "bg-gray-500"
+                                  }`}
+                                ></span>
+                                <span
+                                  className={`text-sm ${
+                                    theme === "light"
+                                      ? "text-gray-700"
+                                      : "text-gray-300"
+                                  }`}
+                                >
+                                  <span className="font-medium">
+                                    Alert Pattern:{" "}
+                                  </span>
+                                  {alert.alert_pattern}
+                                </span>
+                              </li>
+                            )}
+                        </>
+                      )}
+                      {/* Agent 3 specific fields */}
+                      {alert.agent === "behavior_analyzer" && (
+                        <>
+                          {alert.user_id && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-300">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">User ID: </span>
+                                {alert.user_id}
+                              </span>
+                            </li>
+                          )}
+                          {alert.action && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-400">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">Action: </span>
+                                {alert.action.charAt(0).toUpperCase() +
+                                  alert.action.slice(1)}
+                              </span>
+                            </li>
+                          )}
+                          {alert.behavior_location &&
+                            alert.behavior_location !== "Unknown" && (
+                              <li className="flex items-center gap-2 animate-fadeIn animate-delay-500">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    theme === "light"
+                                      ? "bg-gray-400"
+                                      : "bg-gray-500"
+                                  }`}
+                                ></span>
+                                <span
+                                  className={`text-sm ${
+                                    theme === "light"
+                                      ? "text-gray-700"
+                                      : "text-gray-300"
+                                  }`}
+                                >
+                                  <span className="font-medium">
+                                    Location:{" "}
+                                  </span>
+                                  {alert.behavior_location}
+                                </span>
+                              </li>
+                            )}
+                          {alert.clicks_per_minute && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-600">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">
+                                  Clicks Per Minute:{" "}
+                                </span>
+                                {alert.clicks_per_minute}
+                              </span>
+                            </li>
+                          )}
+                          {alert.behavior_timestamp && (
+                            <li className="flex items-center gap-2 animate-fadeIn animate-delay-700">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  theme === "light"
+                                    ? "bg-gray-400"
+                                    : "bg-gray-500"
+                                }`}
+                              ></span>
+                              <span
+                                className={`text-sm ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                <span className="font-medium">Timestamp: </span>
+                                {new Date(
+                                  alert.behavior_timestamp
+                                ).toLocaleString()}
+                              </span>
+                            </li>
+                          )}
+                          {/* Behavior Flags */}
+                          {(alert.is_sensitive_route ||
+                            alert.is_bot_like ||
+                            alert.is_odd_hour ||
+                            alert.impossible_travel ||
+                            alert.deviates_from_baseline) && (
+                            <li className="flex flex-col gap-2 animate-fadeIn animate-delay-800">
+                              <span
+                                className={`text-sm font-medium ${
+                                  theme === "light"
+                                    ? "text-gray-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                Behavior Flags:
+                              </span>
+                              <div className="flex flex-wrap gap-2 ml-7">
+                                {alert.is_sensitive_route && (
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs ${
+                                      theme === "light"
+                                        ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                                        : "bg-yellow-900/30 text-yellow-300 border border-yellow-500/30"
+                                    }`}
+                                  >
+                                    Sensitive Route
+                                  </span>
+                                )}
+                                {alert.is_bot_like && (
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs ${
+                                      theme === "light"
+                                        ? "bg-red-100 text-red-700 border border-red-300"
+                                        : "bg-red-900/30 text-red-300 border border-red-500/30"
+                                    }`}
+                                  >
+                                    Bot-Like
+                                  </span>
+                                )}
+                                {alert.is_odd_hour && (
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs ${
+                                      theme === "light"
+                                        ? "bg-orange-100 text-orange-700 border border-orange-300"
+                                        : "bg-orange-900/30 text-orange-300 border border-orange-500/30"
+                                    }`}
+                                  >
+                                    Odd Hour
+                                  </span>
+                                )}
+                                {alert.impossible_travel && (
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs ${
+                                      theme === "light"
+                                        ? "bg-purple-100 text-purple-700 border border-purple-300"
+                                        : "bg-purple-900/30 text-purple-300 border border-purple-500/30"
+                                    }`}
+                                  >
+                                    Impossible Travel
+                                  </span>
+                                )}
+                                {alert.deviates_from_baseline && (
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs ${
+                                      theme === "light"
+                                        ? "bg-blue-100 text-blue-700 border border-blue-300"
+                                        : "bg-blue-900/30 text-blue-300 border border-blue-500/30"
+                                    }`}
+                                  >
+                                    Baseline Deviation
+                                  </span>
+                                )}
+                              </div>
                             </li>
                           )}
                         </>
                       )}
                     </ul>
-                    <div className="flex gap-2 mt-4">
-                      <Badge
-                        className={`${
-                          theme === "light"
-                            ? "bg-purple-100 text-purple-700 border-purple-300"
-                            : "bg-[#3d2d5a] text-purple-300 border-purple-500/30"
-                        } transition-smooth hover:scale-105 cursor-pointer`}
-                      >
-                        Suspicious
-                      </Badge>
-                      <Badge
-                        className={`${
-                          theme === "light"
-                            ? "bg-red-100 text-red-700 border-red-300"
-                            : "bg-red-900/50 text-red-300 border-red-500/30"
-                        } transition-smooth hover:scale-105 cursor-pointer`}
-                      >
-                        DDoS Risk
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Right side - Chart */}
-                  <div
-                    className={`${
-                      theme === "light"
-                        ? "bg-gray-50 border-gray-200"
-                        : "bg-[#0f1119]/80 border-[#2a2d4a]/50"
-                    } border rounded-lg p-4 transition-smooth hover-lift`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span
-                        className={`text-xs ${
-                          theme === "light" ? "text-gray-500" : "text-gray-500"
-                        } uppercase tracking-wider`}
-                      >
-                        RPS
-                      </span>
-                      <span
-                        className={`text-3xl font-bold ${
-                          theme === "light" ? "text-gray-900" : "text-white"
-                        }`}
-                      >
-                        350
-                      </span>
-                    </div>
-                    <div className="relative h-32 mb-2">
-                      <svg
-                        className="w-full h-full"
-                        viewBox="0 0 400 128"
-                        preserveAspectRatio="none"
-                      >
-                        <defs>
-                          <linearGradient
-                            id={`rpsGradient-${theme}`}
-                            x1="0%"
-                            y1="0%"
-                            x2="0%"
-                            y2="100%"
-                          >
-                            <stop
-                              offset="0%"
-                              stopColor="#3b82f6"
-                              stopOpacity="0.4"
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor="#3b82f6"
-                              stopOpacity="0.05"
-                            />
-                          </linearGradient>
-                          {/* Grid lines */}
-                          <pattern
-                            id={`grid-${theme}`}
-                            width="40"
-                            height="32"
-                            patternUnits="userSpaceOnUse"
-                          >
-                            <path
-                              d="M 40 0 L 0 0 0 32"
-                              fill="none"
-                              stroke={theme === "light" ? "#d1d5db" : "#2a2d4a"}
-                              strokeWidth="0.5"
-                              opacity="0.3"
-                            />
-                          </pattern>
-                        </defs>
-
-                        {/* Grid background */}
-                        <rect
-                          width="400"
-                          height="128"
-                          fill={`url(#grid-${theme})`}
-                        />
-
-                        {/* Horizontal grid lines */}
-                        <line
-                          x1="0"
-                          y1="32"
-                          x2="400"
-                          y2="32"
-                          stroke={theme === "light" ? "#d1d5db" : "#2a2d4a"}
-                          strokeWidth="1"
-                          opacity="0.3"
-                        />
-                        <line
-                          x1="0"
-                          y1="64"
-                          x2="400"
-                          y2="64"
-                          stroke={theme === "light" ? "#d1d5db" : "#2a2d4a"}
-                          strokeWidth="1"
-                          opacity="0.3"
-                        />
-                        <line
-                          x1="0"
-                          y1="96"
-                          x2="400"
-                          y2="96"
-                          stroke={theme === "light" ? "#d1d5db" : "#2a2d4a"}
-                          strokeWidth="1"
-                          opacity="0.3"
-                        />
-
-                        {/* Area fill */}
-                        <path
-                          d="M 0,100 L 100,95 L 200,85 L 300,40 L 400,15 L 400,128 L 0,128 Z"
-                          fill={`url(#rpsGradient-${theme})`}
-                        />
-                        {/* Line */}
-                        <path
-                          d="M 0,100 L 100,95 L 200,85 L 300,40 L 400,15"
-                          fill="none"
-                          stroke="#3b82f6"
-                          strokeWidth="2.5"
-                        />
-                        {/* Endpoint dot */}
-                        <circle
-                          cx="400"
-                          cy="15"
-                          r="4"
-                          fill="#3b82f6"
-                          className="animate-pulse-slow"
-                        />
-                      </svg>
-                    </div>
-                    <div
-                      className={`flex justify-between text-xs ${
-                        theme === "light" ? "text-gray-500" : "text-gray-600"
-                      }`}
-                    >
-                      <span>=1</span>
-                      <span>-1 min</span>
-                      <span>-0.5 min</span>
-                      <span>=0</span>
-                    </div>
                   </div>
                 </div>
               </div>

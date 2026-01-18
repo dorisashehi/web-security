@@ -107,10 +107,10 @@ class LogAnalyzer:
 
         failed_login_count = 0
         alert_key = None
-        ip = None
+        ip = self.extract_ip(state["log_entry"])
 
         if has_failed_login:
-            user = self.extract_user(log)
+            user = self.extract_user(state["log_entry"])
 
             if user and ip:
                 key = (user, ip)
@@ -125,11 +125,11 @@ class LogAnalyzer:
                 alert_key = ("failed_login", user, ip)
 
         elif has_privilege:
-            user = self.extract_user(log)
+            user = self.extract_user(state["log_entry"])
             alert_key = ("privilege_escalation", user)
 
         elif has_permission_denied and log_type == "error":
-            user = self.extract_user(log)
+            user = self.extract_user(state["log_entry"])
             alert_key = ("permission_denied", user)
 
         needs_ai = (
@@ -209,6 +209,15 @@ Respond with JSON only:
         self.alerted_keys.add(key)
         self.last_seen[key] = datetime.now()
 
+        # Extract username from log entry
+        username = self.extract_user(state["log_entry"])
+
+        # Parse log timestamp from log entry
+        log_timestamp = self.extract_log_timestamp(state["log_entry"])
+
+        # Generate alert pattern description
+        alert_pattern = self.generate_alert_pattern(state["failed_login_count"])
+
         alert = {
             "agent": "log_analyzer",
             "severity": state["severity"],
@@ -216,6 +225,9 @@ Respond with JSON only:
             "log_entry": state["log_entry"],
             "failed_login_count": state["failed_login_count"],
             "ip": state.get("ip"),  # Include IP address in alert
+            "username": username,
+            "log_timestamp": log_timestamp.isoformat() if log_timestamp else None,
+            "alert_pattern": alert_pattern,
             "reason": state["reason"],
             "recommended_action": "Investigate user activity and access logs",
             "timestamp": datetime.now().isoformat(),
@@ -232,8 +244,67 @@ Respond with JSON only:
     # -------------------- HELPERS --------------------
 
     def extract_user(self, log: str) -> str:
-        match = re.search(r"user\s+'?(\w+)'?", log, re.IGNORECASE)
-        return match.group(1) if match else ""
+        """Extract username from log entry."""
+        # Try various patterns: user 'admin', user admin, for user 'admin', etc.
+        patterns = [
+            r"user\s+'?(\w+)'?",
+            r"for\s+user\s+'?(\w+)'?",
+            r"user\s+(\w+)",
+            r"username\s+'?(\w+)'?",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, log, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        return ""
+
+    def extract_ip(self, log: str) -> Optional[str]:
+        """Extract IP address from log entry."""
+        # Match IPv4 addresses
+        ip_pattern = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
+        match = re.search(ip_pattern, log)
+        return match.group(0) if match else None
+
+    def extract_log_timestamp(self, log: str) -> Optional[datetime]:
+        """Extract timestamp from log entry."""
+        # Try various timestamp formats
+        patterns = [
+            r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})",  # 2026-01-05 14:22:15
+            r"(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})",  # 01/05/2026 14:22:15
+            r"(\w+\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})",  # Jan 5 14:22:15
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, log)
+            if match:
+                timestamp_str = match.group(1)
+                try:
+                    # Try ISO format first
+                    return datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        # Try US format
+                        return datetime.strptime(timestamp_str, "%m/%d/%Y %H:%M:%S")
+                    except ValueError:
+                        try:
+                            # Try abbreviated month format
+                            return datetime.strptime(timestamp_str, "%b %d %H:%M:%S")
+                        except ValueError:
+                            pass
+        return None
+
+    def generate_alert_pattern(self, failed_login_count: int) -> str:
+        """Generate alert pattern description based on failed login count."""
+        if failed_login_count == 0:
+            return "No failed login pattern detected"
+        elif failed_login_count == 1:
+            return "1 failed attempt detected"
+        elif failed_login_count == 2:
+            return "2 failed attempts in 2 minutes"
+        elif failed_login_count >= 3:
+            return f"{failed_login_count} failed attempts in 2 minutes"
+        else:
+            return "Multiple failed login attempts detected"
 
 
     # -------------------- PUBLIC API --------------------

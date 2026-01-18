@@ -51,6 +51,22 @@ class AlertHandler:
                 user_agent=data.get("user_agent"),
                 geo=data.get("geo"),
                 detection_timestamp=self.parse_timestamp(data.get("detection_timestamp")) if data.get("detection_timestamp") else None,
+                # Agent 2 specific fields
+                log_entry=data.get("log_entry"),
+                log_type=data.get("log_type"),
+                username=data.get("username"),
+                log_timestamp=self.parse_timestamp(data.get("log_timestamp")) if data.get("log_timestamp") else None,
+                # Agent 3 specific fields
+                user_id=data.get("user_id"),
+                action=data.get("action"),
+                behavior_location=data.get("location"),
+                clicks_per_minute=data.get("clicks_per_minute"),
+                is_sensitive_route=data.get("is_sensitive_route"),
+                is_bot_like=data.get("is_bot_like"),
+                is_odd_hour=data.get("is_odd_hour"),
+                impossible_travel=data.get("impossible_travel"),
+                deviates_from_baseline=data.get("deviates_from_baseline"),
+                behavior_timestamp=self.parse_timestamp(data.get("timestamp")) if data.get("timestamp") else None,
             )
 
             db.add(alert)
@@ -90,7 +106,8 @@ class AlertHandler:
             parsed = json.loads(reason_text)
             if isinstance(parsed, dict):
                 classification = parsed.get("classification")
-                reason = parsed.get("reason", "")
+                # Check for both "reason" and "reasoning" keys (Agent 3 uses "reasoning")
+                reason = parsed.get("reason") or parsed.get("reasoning", "")
                 return classification, reason
         except (json.JSONDecodeError, TypeError):
             pass
