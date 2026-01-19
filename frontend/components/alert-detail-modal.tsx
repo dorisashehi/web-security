@@ -806,93 +806,20 @@ export function AlertDetailModal({
                         : "bg-[#0f1119]/80 border-[#2a2d4a]/50"
                     } border rounded-lg p-4 ml-7`}
                   >
-                    <p
-                      className={`text-sm ${
+
+                    <pre className={`text-sm whitespace-pre-wrap ${
                         theme === "light" ? "text-gray-700" : "text-gray-300"
-                      }`}
-                    >
+                      }`}>
                       {alert.recommended_action}
-                    </p>
+                    </pre>
                   </div>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 animate-fadeIn animate-delay-400">
-                <Button className="flex-1 bg-blue-700 hover:bg-blue-800 text-white transition-smooth hover-lift">
-                  <Search className="h-4 w-4 mr-2" />
-                  Investigate
-                </Button>
-                <Button
-                  variant="outline"
-                  className={`flex-1 ${
-                    theme === "light"
-                      ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                      : "bg-transparent border-[#3a3d5a] text-gray-300 hover:bg-[#2a2d4a]"
-                  } transition-smooth hover-lift`}
-                >
-                  <Info className="h-4 w-4 mr-2" />
-                  Learn More
-                </Button>
-                <Button className="flex-1 bg-red-700 hover:bg-red-800 text-white transition-smooth hover-lift hover-glow">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Block IP Address
-                </Button>
-              </div>
             </div>
 
             {/* Right Column - Suggested Actions & Activity Log */}
             <div className="space-y-6">
-              {/* Suggested Action */}
-              <div
-                className={`${
-                  theme === "light"
-                    ? "bg-gray-50 border-gray-200"
-                    : "bg-[#1e2139] border-[#2a2d4a]/50"
-                } border rounded-lg p-5 animate-slideInRight transition-smooth hover-lift`}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <div
-                    className={`p-1 rounded ${
-                      theme === "light" ? "bg-yellow-100" : "bg-yellow-600/20"
-                    }`}
-                  >
-                    <Shield className="h-5 w-5 text-yellow-500" />
-                  </div>
-                  <h4
-                    className={`font-semibold ${
-                      theme === "light" ? "text-gray-900" : "text-white"
-                    }`}
-                  >
-                    Suggested Action
-                  </h4>
-                </div>
-                {alert.recommended_action ? (
-                  <div
-                    className={`${
-                      theme === "light"
-                        ? "bg-gray-50 border-gray-200"
-                        : "bg-[#0f1119]/80 border-[#2a2d4a]/50"
-                    } border rounded-lg p-4`}
-                  >
-                    <p
-                      className={`text-sm ${
-                        theme === "light" ? "text-gray-700" : "text-gray-300"
-                      }`}
-                    >
-                      {alert.recommended_action}
-                    </p>
-                  </div>
-                ) : (
-                  <p
-                    className={`text-sm ${
-                      theme === "light" ? "text-gray-500" : "text-gray-500"
-                    }`}
-                  >
-                    No recommended action available
-                  </p>
-                )}
-              </div>
 
               {/* Activity Log */}
               <div

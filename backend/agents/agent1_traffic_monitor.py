@@ -1,14 +1,12 @@
-"""Agent 1: Network Traffic Monitor - Detects suspicious traffic patterns."""
-
 from typing import Any, TypedDict, Annotated
 from datetime import datetime, timedelta
 from collections import defaultdict
 import operator
 import os
 import json
+
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 
@@ -26,11 +24,11 @@ class TrafficState(TypedDict):
     geo: str
     timestamp: str
 
-    # Derived values
     requests_last_min: int
     needs_ai: bool
     classification: str
     reason: str
+    recommended_action: str
 
     alerts: Annotated[list, operator.add]
 
@@ -42,21 +40,22 @@ class TrafficMonitor:
 
     def __init__(self, event_bus: EventBus, sensitive_routes: list[str]):
         self.event_bus = event_bus
+        self.sensitive_routes = sensitive_routes
+
         self.llm = ChatGroq(
             model_name="llama-3.1-8b-instant",
             groq_api_key=os.getenv("GROQ_API_KEY"),
         )
 
-        # Stateful, cross-request memory
+        # request counts per IP per minute
         self.request_counts = defaultdict[Any, defaultdict[Any, int]](
             lambda: defaultdict(int)
         )
 
-        # Track which IP+route already triggered alerts
+        # alert cooldown tracking
         self.alerted_keys: set[tuple[str, str]] = set()
         self.last_seen: dict[tuple[str, str], datetime] = {}
 
-        self.sensitive_routes = sensitive_routes
         self.graph = self.build_graph()
 
     # -------------------- GRAPH --------------------
@@ -95,7 +94,7 @@ class TrafficMonitor:
         self.request_counts[state["ip"]][minute_key] += 1
         self.last_seen[key] = now
 
-        # Cleanup old alerts (cooldown reset)
+        # cooldown cleanup
         cooldown = timedelta(minutes=5)
         for k, last in list(self.last_seen.items()):
             if now - last > cooldown:
@@ -107,87 +106,111 @@ class TrafficMonitor:
     def analyze_traffic(self, state: TrafficState) -> TrafficState:
         ip = state["ip"]
         route = state["route"]
-        key = (ip, route)
 
         now = datetime.now()
         minute_key = now.replace(second=0, microsecond=0)
-        requests_last_min = self.request_counts[ip][minute_key]
+        rpm = self.request_counts[ip][minute_key]
 
         is_sensitive = route in self.sensitive_routes
         threshold = 10 if is_sensitive else 50
 
-        crossed_threshold = (
-            requests_last_min >= threshold
-            and key not in self.alerted_keys
+        state["requests_last_min"] = rpm
+        state["needs_ai"] = (
+            rpm >= threshold and (ip, route) not in self.alerted_keys
         )
-
-        state["requests_last_min"] = requests_last_min
-        state["needs_ai"] = crossed_threshold
 
         return state
 
     def should_classify(self, state: TrafficState) -> str:
-        if state.get("needs_ai", False):
-            return "classify"
-        return "skip"
+        return "classify" if state.get("needs_ai") else "skip"
 
     def classify_with_ai(self, state: TrafficState) -> TrafficState:
         ip = state["ip"]
         route = state["route"]
+        rpm = state["requests_last_min"]
+        user_agent = state.get("user_agent", "Unknown")
+        geo = state.get("geo", "Unknown")
+
+        is_sensitive = route in self.sensitive_routes
+        threshold = 10 if is_sensitive else 50
 
         prompt = f"""
-Analyze this network traffic pattern and classify it as 'normal' or 'suspicious'.
+    You are a security analysis system.
 
-IP: {ip}
-Route: {route}
-Requests in last minute: {state['requests_last_min']}
-User Agent: {state.get('user_agent', '')}
-Location: {state.get('geo', '')}
+    Analyze the following network traffic and respond with JSON ONLY.
+    Do not include markdown, explanations, or extra text.
+    Do not include placeholders, variables, or curly braces in values.
 
-Respond with JSON only:
-{{
-  "classification": "normal" or "suspicious",
-  "reason": "brief explanation"
-}}
-"""
+    The response MUST be valid JSON and MUST follow this exact schema:
+
+    {{
+    "classification": "normal or suspicious",
+    "reason": "Short plain-text explanation of why the traffic is normal or suspicious.",
+    "recommended_action": "Plain-text remediation steps. Keep the formatting with newlines, numbered lists, and headings (PRIORITY LEVEL, PRIMARY ACTION, WHY, STEPS, ALTERNATIVE ACTION, VERIFICATION, CONSIDERATIONS, RELATED ACTIONS)."
+    }}
+
+    TRAFFIC DETAILS:
+    IP Address: {ip}
+    Route: {route}
+    Requests in last minute: {rpm}
+    Threshold: {threshold} requests per minute
+    Route sensitivity: {"Sensitive" if is_sensitive else "Normal"}
+    User Agent: {user_agent}
+    Geographic Location: {geo}
+    """
+
+        response = self.llm.invoke([HumanMessage(content=prompt)])
+        content = response.content.strip()
 
         try:
-            response = self.llm.invoke([HumanMessage(content=prompt)])
-            result = response.content.lower()
+            # Extract JSON safely
+            json_str = content[content.find("{"): content.rfind("}") + 1]
+            parsed = json.loads(json_str)
 
-            if "suspicious" in result:
-                state["classification"] = "suspicious"
-            else:
-                state["classification"] = "normal"
+            state["classification"] = str(parsed.get("classification", "unknown")).lower().strip()
+            state["reason"] = str(parsed.get("reason", "")).strip()
 
-            state["reason"] = response.content
+            # Preserve the formatting exactly as returned by AI
+            recommended_action = parsed.get("recommended_action", "")
+            # Remove any extra leading/trailing whitespace
+            state["recommended_action"] = recommended_action.strip()
+
+            # Safety guard against braces inside content
+            if "{" in state["reason"] or "}" in state["reason"]:
+                raise ValueError("Unsafe braces detected in reason")
+            if "{" in state["recommended_action"] or "}" in state["recommended_action"]:
+                raise ValueError("Unsafe braces detected in recommended_action")
 
         except Exception as e:
             state["classification"] = "unknown"
-            state["reason"] = f"AI error: {str(e)}"
+            state["reason"] = f"AI parsing error: {e}"
+            state["recommended_action"] = ""
 
         return state
 
     def emit_alert(self, state: TrafficState) -> TrafficState:
-        if state.get("classification") == "suspicious":
-            key = (state["ip"], state["route"])
-            self.alerted_keys.add(key)
+        if state["classification"] != "suspicious":
+            return state
 
-            alert_data = {
-                "agent": "traffic_monitor",
-                "severity": "medium",
-                "ip": state["ip"],
-                "route": state["route"],
-                "requests_per_minute": state["requests_last_min"],
-                "reason": state.get("reason", ""),
-                "recommended_action": "Block IP / Investigate",
-                "user_agent": state.get("user_agent", ""),
-                "geo": state.get("geo", ""),
-                "detection_timestamp": state.get("timestamp", datetime.now().isoformat()),
-            }
+        key = (state["ip"], state["route"])
+        self.alerted_keys.add(key)
 
-            self.event_bus.emit("traffic_alert", alert_data)
-            state["alerts"] = [alert_data]
+        alert_data = {
+            "agent": "traffic_monitor",
+            "severity": "medium",
+            "ip": state["ip"],
+            "route": state["route"],
+            "requests_per_minute": state["requests_last_min"],
+            "classification": state["classification"],
+            "reason": state["reason"],
+            "recommended_action": state["recommended_action"],
+            "user_agent": state.get("user_agent"),
+            "geo": state.get("geo"),
+            "detection_timestamp": state["timestamp"],
+        }
+
+        self.event_bus.emit("traffic_alert", alert_data)
+        state["alerts"] = [alert_data]
 
         return state
 
@@ -206,6 +229,11 @@ Respond with JSON only:
             "user_agent": user_agent,
             "geo": geo,
             "timestamp": datetime.now().isoformat(),
+            "requests_last_min": 0,
+            "needs_ai": False,
+            "classification": "",
+            "reason": "",
+            "recommended_action": "",
             "alerts": [],
         }
 

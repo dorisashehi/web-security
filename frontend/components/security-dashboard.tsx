@@ -276,6 +276,7 @@ export function SecurityDashboard() {
       const data = await response.json();
 
       if (data.success && data.related_alerts) {
+        console.log("dataaa", data)
         // Get request pattern description based on requests_per_minute
         const getRequestPattern = (rpm: number | null | undefined): string => {
           if (!rpm) return "No pattern data";
